@@ -28,7 +28,6 @@ export function Preview({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
 
-  // Existing layout effect for container dimensions
   useLayoutEffect(() => {
     const adjustContent = () => {
       const container = containerRef.current;
@@ -61,31 +60,32 @@ export function Preview({
     };
   }, [contentWidth, contentHeight, maxHeight, maxWidth]);
 
-  // Update iframe content and animations
-  useEffect(() => {
-    const htmlFile = files.find((file) => file.type === "text/html");
-    if (!htmlFile || !iframeRef.current) return;
+  const setAnimationsIntoIframe = () => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
 
-    const doc = iframeRef.current.contentDocument;
+    const doc = iframe.contentDocument;
     if (!doc) return;
 
-    // Keep existing content but add animations CSS
     const animationsCSS = generateAnimationCSS(animations, duration);
     const styleElement = doc.createElement('style');
     styleElement.textContent = animationsCSS;
+
+    if (!doc.head) return;
 
     doc.head.appendChild(styleElement);
 
     // Update animation states
     animations.forEach(animation => {
-      const element = doc.querySelector(animation.element);
-      if (element instanceof HTMLElement) {
-        element.style.animationPlayState = isPlaying ? 'running' : 'paused';
-        element.style.animationDelay = `-${currentTime}ms`;
-      }
+      const element = doc.querySelector(`.${animation.element}`);
+      // TODO: Set the play state based on the global state
     });
+  };
 
-  }, [files, animations, duration, isPlaying, currentTime]);
+  useEffect(() => {
+    setAnimationsIntoIframe();
+  }, [isPlaying]);
+
 
   return (
     <div className="relative flex-1 bg-[#1E1E1E]">
@@ -130,9 +130,9 @@ function generateAnimationCSS(animations: Animation[], duration: number): string
       @keyframes ${keyframesName} {
         ${keyframes}
       }
-      ${animation.element} {
+      .${animation.element} {
         animation: ${keyframesName} ${duration}ms linear infinite;
-        animation-play-state: paused;
+        animation-play-state: var(--play-state, paused);
       }
     `;
   }).join('\n');
