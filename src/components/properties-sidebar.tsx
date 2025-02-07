@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import { ChevronRight, ChevronDown, Settings } from "lucide-react";
 import { useAnimations } from "@/stores/use-animations";
 
-interface PropertiesSidebarProps { };
-
 const propertyGroups = {
   Transform: ["translateX", "translateY", "scale", "rotate", "skew"],
   Appearance: ["opacity", "color", "backgroundColor"],
@@ -11,7 +9,7 @@ const propertyGroups = {
   Position: ["top", "left", "right", "bottom"]
 };
 
-export function PropertiesSidebar({ }: PropertiesSidebarProps) {
+export function PropertiesSidebar() {
   const {
     selectedElement,
     selectedKeyframe,
@@ -92,7 +90,7 @@ export function PropertiesSidebar({ }: PropertiesSidebarProps) {
                       type="text"
                       value={properties[prop] || ""}
                       onChange={(e) => handlePropertyChange(prop, e.target.value)}
-                      className="w-full rounded bg-[#404040] px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#00A8FF]"
+                      className="w-full rounded text-white bg-[#404040] px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#00A8FF]"
                     />
                   </div>
                 ))}

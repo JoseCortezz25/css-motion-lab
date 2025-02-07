@@ -1,112 +1,99 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { FileContent } from "@/types/file";
+import React, { useRef, useState, useLayoutEffect, useEffect } from 'react';
+import { Maximize2 } from 'lucide-react';
+import { useAnimations } from '@/stores/use-animations';
+import { FileContent } from '@/types/file';
 import type { Animation } from "@/types/animations";
-import { Maximize2 } from "lucide-react";
-import { useAnimations } from "@/stores/use-animations";
 
 interface PreviewProps {
-  files: FileContent[]
-  animations: Animation[]
-  duration: number
-  isPlaying: boolean
-  currentTime: number
-  maxWidth?: number
-  maxHeight?: number
-  contentWidth: number
-  contentHeight: number
+  files: FileContent[];
+  animations: Animation[];
+  duration: number;
+  isPlaying: boolean;
+  currentTime: number;
+  maxWidth?: number;
+  maxHeight?: number;
+  contentWidth: number;
+  contentHeight: number;
 }
 
 export function Preview({
   files,
   maxWidth = 500,
-  maxHeight = 400,
-  contentWidth,
-  contentHeight
+  maxHeight = 400
 }: PreviewProps) {
   const { animations, duration, isPlaying, currentTime } = useAnimations();
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  const adjustContentIntoContainer = () => {
+    const container = containerRef.current;
+    if (!container) return;
+    const children = container.querySelector('*');
+
+    const contentWidth = children?.clientWidth || 0;
+    const contentHeight = children?.clientHeight || 0;
+
+    const scale = Math.min(maxWidth / contentWidth, maxHeight / contentHeight);
+    setScale(scale);
+  };
 
   useLayoutEffect(() => {
-    const adjustContent = () => {
-      const container = containerRef.current;
-      if (!container) return;
-
-      const padding = 20; // 10px padding in each side
-      const maxWidthContainer = maxWidth - padding;
-      const maxHeightContainer = maxHeight - padding;
-
-      const scaleX = maxWidthContainer / contentWidth;
-      const scaleY = maxHeightContainer / contentHeight;
-      const scale = Math.min(scaleX, scaleY, 1);
-
-      const scaledWidth = contentWidth * scale + padding;
-      const scaledHeight = contentHeight * scale + padding;
-
-      setContainerDimensions({
-        width: scaledWidth,
-        height: scaledHeight
-      });
-
-      console.log("scale", scale);
-    };
-
-    adjustContent();
-    window.addEventListener("resize", adjustContent);
-
-    return () => {
-      window.removeEventListener("resize", adjustContent);
-    };
-  }, [contentWidth, contentHeight, maxHeight, maxWidth]);
+    adjustContentIntoContainer();
+  }, []);
 
   const setAnimationsIntoIframe = () => {
-    const iframe = iframeRef.current;
-    if (!iframe) return;
+    const content = contentRef.current;
+    if (!content) return;
 
-    const doc = iframe.contentDocument;
-    if (!doc) return;
+    console.log("isPlaying", isPlaying);
+
+    if (isPlaying) {
+      content.style.setProperty('--play-state', 'running');
+    }
+
+    if (!isPlaying) {
+      content.style.setProperty('--play-state', 'paused');
+    }
+
 
     const animationsCSS = generateAnimationCSS(animations, duration);
-    const styleElement = doc.createElement('style');
+    const styleElement = document.createElement('style');
     styleElement.textContent = animationsCSS;
+    // styleElement.textContent = animationsCSS;
 
-    if (!doc.head) return;
-
-    doc.head.appendChild(styleElement);
-
-    // Update animation states
-    animations.forEach(animation => {
-      const element = doc.querySelector(`.${animation.element}`);
-      // TODO: Set the play state based on the global state
-    });
+    content.appendChild(styleElement);
   };
+
 
   useEffect(() => {
     setAnimationsIntoIframe();
   }, [isPlaying]);
 
-
   return (
     <div className="relative flex-1 bg-[#1E1E1E]">
-      <div className="absolute right-4 top-4 z-10">
-        <button className="rounded bg-[#404040] p-2 hover:bg-[#505050]">
-          <Maximize2 className="text-white h-4 w-4" />
-        </button>
-      </div>
-      <div ref={containerRef} className="relative flex items-center justify-center h-full">
-        <iframe
-          ref={iframeRef}
-          className="w-full h-full border-none"
+      <div className="relative h-full w-full overflow-scroll">
+        <div
+          ref={containerRef}
+          className="relative overflow-hidden flex items-center justify-center"
           style={{
-            transform: `scale(${Math.min(
-              containerDimensions.width / contentWidth,
-              containerDimensions.height / contentHeight
-            )})`,
-            transformOrigin: 'center'
+            transformOrigin: 'center',
+            height: '100%'
           }}
-          srcDoc={files.find((file) => file.type === "text/html")?.content || ""}
-        />
+        >
+          <div
+            ref={contentRef}
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: `scale(${scale})`
+            }}
+            dangerouslySetInnerHTML={{ __html: files.find((file) => file.type === "text/html")?.content || "" }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -132,7 +119,7 @@ function generateAnimationCSS(animations: Animation[], duration: number): string
       }
       .${animation.element} {
         animation: ${keyframesName} ${duration}ms linear infinite;
-        animation-play-state: var(--play-state, paused);
+        animation-play-state: var(--play-state);
       }
     `;
   }).join('\n');
